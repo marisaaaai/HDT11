@@ -1,0 +1,169 @@
+---
+title: "HDT8"
+author: "Marisa Montoya, Majo Morales, Luis Garcia"
+date: "5/3/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# HDT 8
+## RNA
+```{r librerias y generacion de entrenamiento y prueba, include=FALSE}
+#install.packages("nnet")
+#install.packages("RWeka")
+#install.packages("neuralnet")
+library(caret)
+library(nnet)
+#library(RWeka)
+library(neural)
+library(dummy)
+library(neuralnet)
+library(PerformanceAnalytics)
+setwd("C:/Users/Marisa Montoya}/HDT11")
+
+datos <- read.csv(file = 'train.csv')
+porcentaje<-0.7
+set.seed(123)
+datos$Clasificacion <- ifelse(datos$SalePrice <=152000, "Barata", ifelse(datos$SalePrice <=229000, "Media", "Cara"))
+datos <- datos[,c(2,4,18,19,20,21,27,35,37,38,39,44,45,46,47,48,49,50,51,52,53,55,57,60,62,63,67,68,69,70,71,72,76,77,78,81,82)]
+datos$Clasificacion <- as.factor(datos$Clasificacion)
+datos <- datos[, colSums(is.na(datos)) == 0]
+datos<-subset(datos, select = -c(33) ) #Se elimina SALESPRICE para evitar overfitting
+corte <- sample(nrow(datos),nrow(datos)*porcentaje)
+train<-datos[corte,]
+test<-datos[-corte,]
+```
+
+Esta hoja de trabajo busca el poder predecir la variable respuesta de clasificacion de la base de datos de Kaggle.
+
+Se comenzara con dos modelos diferentes de redes neuronales para predecir la variable de clasificacion "Clasificación".
+
+### Red Neuronal con NNET
+```{r nnet con 2, echo=FALSE}
+#-------------------------------------------------
+# Red Neuronal con nnet
+#-------------------------------------------------
+modelo.nn2 <- nnet(datos$Clasificacion~.,data = datos,subset = corte, size=2, rang=0.1,decay=5e-4, maxit=200) 
+prediccion2 <- as.data.frame(predict(modelo.nn2, newdata = test[,1:32]))
+modelo.nn2
+columnaMasAlta<-apply(prediccion2, 1, function(x) colnames(prediccion2)[which.max(x)])
+test$prediccion2<-columnaMasAlta #Se le aÃ±ade al grupo de prueba el valor de la predicciÃ³n
+
+cfm<-confusionMatrix(as.factor(test$prediccion2),test$Clasificacion)
+cfm
+```
+
+#### analisis:
+El modelo tuvo una forma 32-2-3 lo que significa que uso 32 variables de entradas, tuvo dos neuronas en la capa oculta y da como resultado 3 variables de clasificacion. El modelo tuvo un accuracy de 58.31% lo cual es bajo comparado con el accuracy que se ha obtenido en las hojas de trabajo anteriormente. Cabe mencionar que el modelo no predijo que ni una casa fuera  media todas sus predicciones se basaron en que las casas son baratas o caras. Asi vemos que se equivocó al clasificar 7 y 57 casas baratas y medias respectivamente como caras y al clasificar 7 y 112 casas como baratas cuando eran caras y medias.  
+
+Se quiere probar si con un numero mas alto de neuronas en la capa oculta puede aumentar el accuracy por lo que se probara cambiar el size en el modelo a 3 y se vera si tiene algun cambio. 
+```{r nnet con 3, echo=FALSE}
+#-------------------------------------------------
+# Red Neuronal con nnet
+#-------------------------------------------------
+modelo.nn2 <- nnet(datos$Clasificacion~.,data = datos,subset = corte, size=3, rang=0.1,decay=5e-4, maxit=200) 
+prediccion2 <- as.data.frame(predict(modelo.nn2, newdata = test[,1:32]))
+modelo.nn2
+columnaMasAlta<-apply(prediccion2, 1, function(x) colnames(prediccion2)[which.max(x)])
+test$prediccion2<-columnaMasAlta #Se le aÃ±ade al grupo de prueba el valor de la predicciÃ³n
+
+cfm<-confusionMatrix(as.factor(test$prediccion2),test$Clasificacion)
+cfm
+```
+
+El accuracy cambio por decimales ya que el nuevo accuracy subió a 59% y ya comienza a clasificar a las casas como medias. Podemos ver que aqui el error se encuentra en que clasifico 2 y 91 casas como baratas cuando eran caras y medias. Cuando clasifico 10 y 75 casas como caras cuando eran baratas y medias y finalmente cuando clasificó 2 casas como medias cuando eran caras. 
+
+### Red Neuronal con Caret
+
+```{r caret rn, echo=FALSE}
+#-------------------------------------------------
+# Red Neuronal con Caret
+#-------------------------------------------------
+
+modeloCaret <- train(Clasificacion~., data=train, method="nnet", trace=F)
+modeloCaret
+test$prediccionCaret<-predict(modeloCaret, newdata = test[,1:32])
+cfmCaret<-confusionMatrix(as.factor(test$prediccionCaret),test$Clasificacion)
+cfmCaret
+```
+#### analisis
+La red neuronal realizada con caret tuvo una ccurazy mas alto que con nnet, se tuvo el 63.33% de accuracy. EL modelo nos demuestra que tuvimos 1021 muestras, 32 variables predictoras y 3 clases de variable respuesta. Caret hace una red neuronal de diferentes numeros de neuronas en la capa escondida y de decay para poder escoger los valores óptimos que regresen el mayor accuracy. Del modelo podemos ver que uso un size de 5 y un decay de 0.1. El modelo se quivoco al clasificar 2 y 68 casas como baratas cuando eran caras y medias. 10 y 58 casas como caras cuandoe ran baratas y medias y finalmente se equivocó al clasificar 17 y 6 casas como medias cuando eran baratas y caras respectivamente. 
+
+De los dos redes neuronales para clasificacion ha sido mejor la red neuronal realizada con Caret, sin emabrgo, creemos importante mencionar que Caret al hacer varias redes neuronales para determinar el mejor modelo tiene una complejidad mayor y se lleva a cabo en un tiempo de procesamiento signficativamente mayor comparado con Nnet. Sin embargo, hacer las diferentes combinaciones con nnet del size y decay nos demora tiempo y por eso es mejor el modelo de Caret, que lo hace automaticamente. 
+
+Ahora se prosigue a usar SalePrice para crear dos modelos neuronales que  predigan la variable ya mencionada.
+```{r carga de datos, include=FALSE}
+setwd("C:/Users/Marisa Montoya}/HDT11")
+datos <- read.csv(file = 'train.csv')
+porcentaje<-0.7
+set.seed(123)
+datos <- datos[,c(2,4,18,19,20,21,27,35,37,38,39,44,45,46,47,48,49,50,51,52,53,55,57,60,62,63,67,68,69,70,71,72,76,77,78,81)]
+datos <- datos[, colSums(is.na(datos)) == 0]
+corte <- sample(nrow(datos),nrow(datos)*porcentaje)
+train<-datos[corte,]
+test<-datos[-corte,]
+```
+
+### Red neuronal con neuralnet
+Para hacer uso de este modelo y buscar los mejores valores de predicción se proseguira a normalizar los datos de SalePrice. 
+```{r neural net, echo=FALSE}
+library(MASS); library(neuralnet); library(ggplot2)
+#normalizacion de los datos
+maxs      <- apply(train, 2, max)
+mins      <- apply(train, 2, min)
+datos_nrm <- as.data.frame(scale(datos, center = mins, scale = maxs - mins))
+train_nrm <- datos_nrm[corte, ]
+test_nrm  <- datos_nrm[-corte, ]
+#formula
+nms  <- names(train_nrm)
+frml <- as.formula(paste("SalePrice ~", paste(nms[!nms %in% "SalePrice"], collapse = " + ")))
+frml
+#modelo
+modelo.nn <- neuralnet(frml, data = train_nrm, hidden = c(7,5), threshold = 0.05, algorithm     = "rprop+")
+
+plot(modelo.nn)
+
+#pred
+pr.nn   <- compute(modelo.nn,within(test_nrm,rm(SalePrice)))
+#Se desnormaliza los valores
+SalePrice.predict <- pr.nn$net.result*(max(datos$SalePrice)-min(datos$SalePrice))+min(datos$SalePrice)
+SalePrice.real    <- (test_nrm$SalePrice)*(max(datos$SalePrice)-min(datos$SalePrice))+min(datos$SalePrice)
+#SC
+se.nn <- sum((SalePrice.real - SalePrice.predict ) ^2) / nrow (test_nrm)
+#Grafico
+qplot(x=SalePrice.real, y=SalePrice.predict, geom=c("point","smooth"), method="lm", 
+      main=paste("Real Vs Prediccion. Summa de Error Cuadratico=", round(se.nn,2)))
+
+corr <- data.frame(SalePrice.real,SalePrice.predict)
+chart.Correlation(corr)
+
+plot(x = SalePrice.real, y= SalePrice.predict, xlab= "SalePrice", ylab= "Prediccion", main = "SalePrice vs predicción")
+
+```
+
+#### analisis
+Como se puede ver del diagrama de dispersión los datos se encuentran altamente relacionados y no tan dispersos de la linea azul encontrada en el gráfico. Lo que significa que los datos predichos por la red neuronal no son tan diferentes que los datos reales encontrados en el archivo de la base de datos. Se prosiguio a obtener el R cuadrado para saber a que nivel (y poder representar de manera numerica) esta correlación llega. Obteniendo asi un R cuadrado de 0.86 lo cual es significativamente alto. 
+
+### Red neuronal con 
+```{r}
+library(caret)
+library(nnet)
+setwd("C:/Users/Marisa Montoya}/HDT11")
+datos <- read.csv(file = 'train.csv')
+porcentaje<-0.7
+set.seed(123)
+datos <- datos[,c(2,4,18,19,20,21,27,35,37,38,39,44,45,46,47,48,49,50,51,52,53,55,57,60,62,63,67,68,69,70,71,72,76,77,78,81)]
+datos <- datos[, colSums(is.na(datos)) == 0]
+corte <- sample(nrow(datos),nrow(datos)*porcentaje)
+train<-datos[corte,]
+test<-datos[-corte,]
+modeloCaret <- train(SalePrice~., data=train, method="nnet", trace=F)
+test$prediccionCaret<-predict(modeloCaret, newdata = test[,1:32])
+se.nn <- sum((test$SalePrice - test$prediccionCaret) ^2) / nrow (test)
+qplot(x=test$SalePrice, y=test$prediccionCaret, geom=c("point","smooth"), method="lm", 
+      main=paste("Real Vs Prediccion. Summa de Error Cuadratico=", round(se.nn,2)))
+```
+
