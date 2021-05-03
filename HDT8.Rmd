@@ -140,17 +140,17 @@ qplot(x=SalePrice.real, y=SalePrice.predict, geom=c("point","smooth"), method="l
 corr <- data.frame(SalePrice.real,SalePrice.predict)
 chart.Correlation(corr)
 
-plot(x = SalePrice.real, y= SalePrice.predict, xlab= "SalePrice", ylab= "Prediccion", main = "SalePrice vs predicción")
 
 ```
 
 #### analisis
-Como se puede ver del diagrama de dispersión los datos se encuentran altamente relacionados y no tan dispersos de la linea azul encontrada en el gráfico. Lo que significa que los datos predichos por la red neuronal no son tan diferentes que los datos reales encontrados en el archivo de la base de datos. Se prosiguio a obtener el R cuadrado para saber a que nivel (y poder representar de manera numerica) esta correlación llega. Obteniendo asi un R cuadrado de 0.86 lo cual es significativamente alto. 
+Como se puede ver del diagrama de dispersión (imagen1) los datos se encuentran altamente relacionados y no tan dispersos de la linea azul encontrada en el gráfico. Lo que significa que los datos predichos por la red neuronal no son tan diferentes que los datos reales encontrados en el archivo de la base de datos. Se prosiguio a obtener el R cuadrado para saber a que nivel (y poder representar de manera numerica) esta correlación llega. Obteniendo asi un R cuadrado de 0.86 (mostrado en la imagen 2) lo cual es significativamente alto. A pesar que la suma de cuadrados del error es de 329 (se muestra en la imagen 1) cabe mencionar que en comparacion con los precios de las casas un 329 es relativamente corto e insignificativo. Lo cual nos demuestra que el modelo ha sido exitoso. 
 
-### Red neuronal con 
-```{r}
+### Red neuronal con Caret brnn
+```{r brnn, echo=FALSE}
 library(caret)
 library(nnet)
+library(brnn)
 setwd("C:/Users/Marisa Montoya}/HDT11")
 datos <- read.csv(file = 'train.csv')
 porcentaje<-0.7
@@ -160,10 +160,27 @@ datos <- datos[, colSums(is.na(datos)) == 0]
 corte <- sample(nrow(datos),nrow(datos)*porcentaje)
 train<-datos[corte,]
 test<-datos[-corte,]
-modeloCaret <- train(SalePrice~., data=train, method="nnet", trace=F)
+modeloCaret <- train(SalePrice~., data=train, method="brnn", trace=F)
+modeloCaret
 test$prediccionCaret<-predict(modeloCaret, newdata = test[,1:32])
 se.nn <- sum((test$SalePrice - test$prediccionCaret) ^2) / nrow (test)
 qplot(x=test$SalePrice, y=test$prediccionCaret, geom=c("point","smooth"), method="lm", 
-      main=paste("Real Vs Prediccion. Summa de Error Cuadratico=", round(se.nn,2)))
+      main=paste("Real Vs Prediccion"))
+
+corr <- data.frame(test$SalePrice,test$prediccionCaret)
+chart.Correlation(corr)
 ```
 
+#### analisis 
+Como se puede ver del diagrama de dispersión  los datos se encuentran altamente relacionados y no tan dispersos de la linea azul encontrada en el gráfico. Lo que significa que los datos predichos por la red neuronal no son tan diferentes que los datos reales encontrados en el archivo de la base de datos. Se prosiguio a obtener el R cuadrado para saber a que nivel (y poder representar de manera numerica) esta correlación llega. Obteniendo asi un R cuadrado de 0.95  lo cual es significativamente alto. Lo cual nos demuestra que el modelo ha sido exitoso. 
+
+En comparacion de ambos modelos caret usando brnn para hacer una red neuronal obtuvo un accuracy mayor (diferencia del 9%) pero por hacer varias interacciones para obtener un resultado el tiemmpo de procesamiento es largo y por ende la complejidad igual. Sin embargo, es más importante poder predecir de manera correcta lo que se desea, por lo que Caret tiene el mejor modelo.
+
+# Comparacion de modelos de clasificación
+En los modelos de clasificacion nos encontramos con la compracion de Naive Bayes (accuracy de 73.12%) árbol de clasificacion (78.36%) y con SVM (accuracy de 86.1%). Cualquiera de estos modelos tienen un accuracy significativamente más alto que el dado por cualquiera de los dos modelos neuronales hechos para la clasificacion. Tomando así que el SVM es el modelo más eficaz tanto en accuracy como en tiempo de procesamiento. Ya que el modelo de caret para redes neuronales nos dio el accuracy más alto (entre los RNA), se tardo en correr pero aún asi no super al SVM. Por lo que el mejor algoritmo presentado en las hojas de trabajo es  SVM tomando en cuenta esta.
+
+# COmparacion de modelos de prediccion de SalePrice
+En los modelos de prediccion de SalePrice nos encontramos con el modelo de regresion lineal y arbol de regresión. En comparacion con las hojas anteriores el que mejor se ha visto que predice (a pesar que tenga un tiempo de procesamiento mas alto es el modelo de carte usando Bayesian Regularazid Neural Networks) este modelo usa solamente una neurona en la capa escondida pero pureba con diferentes parametros y calcula en cada prueba el RMSE para seleccionar el modelo más óptimo entre todos y es el que nos da un R cuadrado del 0.95 (el más alto visto de las HDT) por lo que se declara el el BRNN es el mejor algoritmo para predecir SalePrice hasta ahora. 
+
+# Repositorio de  git 
+https://github.com/marisaaaai/HDT11.git 
